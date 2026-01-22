@@ -1,0 +1,74 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Scott Weissman â€” The Hebrew Hammer</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <h1>Scott Weissman <span class="nick">"The Hebrew Hammer"</span></h1>
+      <nav>
+        <a href="#results">Results</a>
+        <a href="#stats">Stats</a>
+        <a href="#photos">Photos</a>
+        <a href="#sources">Sources</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="hero">
+      <img id="logo" src="assets/logo.svg" alt="Hebrew Hammer logo" />
+      <div id="bio">
+        <p id="bio-text">Loading profileâ€¦</p>
+        <div id="external-links"></div>
+      </div>
+    </section>
+
+    <section id="stats">
+      <h2>Notable Stats</h2>
+      <div id="stats-grid">Loading statsâ€¦</div>
+    </section>
+
+    <section id="results">
+      <h2>Results & Placements</h2>
+      <div id="results-controls">
+        <input id="filter" placeholder="Filter results (tournament / result / source)" />
+        <select id="sort">
+          <option value="date">Sort by date (new â†’ old)</option>
+          <option value="title">Sort by tournament</option>
+        </select>
+      </div>
+      <div id="table-wrap">Loading resultsâ€¦</div>
+    </section>
+
+    <section id="photos">
+      <h2>Photo Gallery</h2>
+      <div class="gallery">
+        <img src="assets/photo1.jpg" alt="Match photo (replace with your photo)">
+        <img src="assets/photo2.jpg" alt="Portrait (replace with your photo)">
+        <img src="assets/logo.svg" alt="Hebrew Hammer patch">
+      </div>
+    </section>
+
+    <section id="sources">
+      <h2>Sources</h2>
+      <ul id="sources-list">
+        <li>Results are automatically pulled from: Flowrestling, WrestlingTournaments, and TrackWrestling (profile links you provided).</li>
+        <li>Automation is performed by a scheduled GitHub Action that updates the <code>data/tournaments.json</code> file.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <small>Site updates automatically. If you supplied profiles, results are pulled and normalized.</small>
+    </div>
+  </footer>
+
+  <script src="scripts/app.js" defer></script>
+</body>
+</html>
