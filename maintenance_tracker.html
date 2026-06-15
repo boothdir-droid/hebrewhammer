@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><title>Room Maintenance & Testing Tracker</title>
+    <style>
+        :root { --primary: #1e3a8a; --bg: #f8fafc; --card: #ffffff; --text: #334155; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; padding: 20px; line-height: 1.4; }
+        header { background: linear-gradient(135deg, #1e3a8a, #0f172a); color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; }
+        .dash { display: grid; grid-template-columns: 200px 1fr; gap: 20px; align-items: center; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; }
+        .stats { display: flex; gap: 15px; flex-wrap: wrap; }
+        .stat-box { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; min-width: 100px; text-align: center; }
+        .stat-box h3 { font-size: 10px; text-transform: uppercase; margin: 0; opacity: 0.8; }
+        .stat-box p { font-size: 20px; font-weight: bold; margin: 5px 0 0 0; }
+        .gauge-v { font-size: 24px; font-weight: bold; }
+        .controls { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; display: flex; gap: 10px; }
+        input, select { padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; }
+        .room-card { background: var(--card); border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .room-h { background: #f1f5f9; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; }
+        .room-n { font-weight: bold; font-size: 18px; }
+        .room-b { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
+        .proc-s { background: #fff; padding: 10px; }
+        .proc-s h4 { margin: 0 0 10px 0; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .check-item { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 13px; cursor: pointer; }
+        .check-item input { margin-top: 3px; }
+        .pill { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; background: #e2e8f0; }
+        .pill.done { background: #dcfce7; color: #15803d; }
+        .lamp-in { margin-left: 25px; margin-top: 5px; font-size: 12px; }
+        @media (max-width: 700px) { .room-b { grid-template-columns: 1fr; } .dash { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Maintenance Tracker</h1>
+        <div class="dash">
+            <div style="text-align: center;">
+                <div class="gauge-v" id="g-perc">0%</div>
+                <div style="font-size: 10px; text-transform: uppercase;">Work Remaining</div>
+            </div>
+            <div class="stats">
+                <div class="stat-box"><h3>Total</h3><p id="s-tot">0</p></div>
+                <div class="stat-box"><h3>Done</h3><p id="s-com">0</p></div>
+                <div class="stat-box" style="background: rgba(74,222,128,0.2)"><h3>Today</h3><p id="s-tod">0</p></div>
+                <div class="stat-box" style="background: rgba(56,189,248,0.2)"><h3>Week</h3><p id="s-wek">0</p></div>
+            </div>
+        </div>
+    </header>
+
+    <div class="controls">
+        <input type="text" id="search" placeholder="Search Room..." oninput="render()">
+        <select id="f-status" onchange="render()"><option value="">All Status</option><option value="p">Pending</option><option value="c">Completed</option></select>
+        <button onclick="reset()">Reset All</button>
+    </div>
+
+    <div id="container"></div>
+
+    <script>
+        // DATA FROM Maintenance List 2023.xlsx
+        const rooms = [{"ROOM #": "AERO 20", "TYPE": "CLASSROOM", "DEPT": "AVIATION", "MODEL": "EPSON 1985WU"}, {"ROOM #": "BUSC 115", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "NEC P703 (x4)"}, {"ROOM #": "BUSC 120", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "NEC P703 (x4)"}, {"ROOM #": "BUSC 121A", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "NEC P703 (x2)"}, {"ROOM #": "BUSC 121B", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "NEC P703 (x2)"}, {"ROOM #": "BUSC 124", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "EPSON L610U (x2)"}, {"ROOM #": "BUSC 215", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x4)"}, {"ROOM #": "BUSC 218", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x2)"}, {"ROOM #": "BUSC 221", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x2)"}, {"ROOM #": "BUSC 222", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x2)"}, {"ROOM #": "BUSC 223", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x4)"}, {"ROOM #": "BUSC 315", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x4)"}, {"ROOM #": "BUSC 318", "TYPE": "COMPUTER LAB", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x2)"}, {"ROOM #": "BUSC 321", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "SMART UX80 (x4)"}, {"ROOM #": "CAMP 144", "TYPE": "MEETING ROOM", "DEPT": "ITSC", "MODEL": "NEC P701-AVT"}, {"ROOM #": "CAMP 145", "TYPE": "MEETING ROOM", "DEPT": "ITSC", "MODEL": "NEC P701-AVT"}, {"ROOM #": "CAMP 152A", "TYPE": "BALLROOM", "DEPT": "ITSC", "MODEL": "EPSON L1500UH (x2)"}, {"ROOM #": "CAMP 152B", "TYPE": "BALLROOM", "DEPT": "ITSC", "MODEL": "NEC P701-AVT"}, {"ROOM #": "CAMP 152C", "TYPE": "BALLROOM", "DEPT": "ITSC", "MODEL": "NEC P701-AVT"}, {"ROOM #": "CAMP 159", "TYPE": "LOUNGE", "DEPT": "ITSC", "MODEL": "NEC C751Q"}, {"ROOM #": "GLSN 102", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L1300U"}, {"ROOM #": "GLSN 104", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L1300U"}, {"ROOM #": "GLSN 108A", "TYPE": "WET LAB", "DEPT": "DENTAL", "MODEL": "LG 65LY540S"}, {"ROOM #": "GLSN 108C", "TYPE": "WET LAB", "DEPT": "DENTAL", "MODEL": "LG 65LY540S"}, {"ROOM #": "GLSN 113", "TYPE": "WET LAB", "DEPT": "DENTAL", "MODEL": "NEC E705"}, {"ROOM #": "GLSN 114", "TYPE": "WET LAB", "DEPT": "DENTAL", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 121", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 122", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 123", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 125", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 127", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 129", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 131", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC V801"}, {"ROOM #": "GLSN 218", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 220", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 222", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 223", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L510U"}, {"ROOM #": "GLSN 224", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 225", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC E805"}, {"ROOM #": "GLSN 227", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC E805"}, {"ROOM #": "GLSN 229", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC E805"}, {"ROOM #": "GLSN 231", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC E805"}, {"ROOM #": "GLSN 233", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 235", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 237", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 238", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 239", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 240", "TYPE": "CONF ROOM", "DEPT": "HEALTH SCIENCES", "MODEL": "NEC E657Q"}, {"ROOM #": "GLSN 242", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 243", "TYPE": "CLASSROOM", "DEPT": "PSYCHOLOGY", "MODEL": "EPSON D6155W"}, {"ROOM #": "GLSN 302-1", "TYPE": "WET LAB", "DEPT": "NURSING", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 302-2", "TYPE": "WET LAB", "DEPT": "NURSING", "MODEL": "EPSON 1985WU"}, {"ROOM #": "GLSN 304-1", "TYPE": "WET LAB", "DEPT": "NURSING", "MODEL": "old epson"}, {"ROOM #": "GLSN 304-2", "TYPE": "WET LAB", "DEPT": "NURSING", "MODEL": "old epson"}, {"ROOM #": "GLSN 306", "TYPE": "WET LAB", "DEPT": "NURSING", "MODEL": "old epson"}, {"ROOM #": "GLSN 308", "TYPE": "WET LAB", "DEPT": "NURSING", "MODEL": "old epson"}, {"ROOM #": "GLSN 310", "TYPE": "WET LAB", "DEPT": "CRJ", "MODEL": "EPSON 1925W"}, {"ROOM #": "GLSN 313", "TYPE": "WET LAB", "DEPT": "MLT", "MODEL": "EPSON D6155W"}, {"ROOM #": "GLSN 315", "TYPE": "WET LAB", "DEPT": "MLT", "MODEL": "EPSON D6155W"}, {"ROOM #": "GLSN 317", "TYPE": "WET LAB", "DEPT": "MLT", "MODEL": "EPSON D6155W"}, {"ROOM #": "GLSN 319", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "NEC E805"}, {"ROOM #": "GLSN 320", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "GLSN 321", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "GLSN 322", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "GLSN 325", "TYPE": "CONF ROOM", "DEPT": "HEALTH SCIENCES", "MODEL": "NEC E657Q"}, {"ROOM #": "GLSN 326", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "GLSN 327", "TYPE": "COMPUTER LAB", "DEPT": "PCM", "MODEL": "EPSON 2250U"}, {"ROOM #": "GLSN 328", "TYPE": "COMPUTER LAB", "DEPT": "PCM", "MODEL": "NEC E805"}, {"ROOM #": "GLSN L100", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2255U"}, {"ROOM #": "GLSN L102", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2255U"}, {"ROOM #": "GLSN L108", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2265U"}, {"ROOM #": "GLSN L111", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2265U (x2)"}, {"ROOM #": "GREENHOUSE 003", "TYPE": "WET LAB", "DEPT": "HORT", "MODEL": "Epson ?"}, {"ROOM #": "GRNLY 105", "TYPE": "COMPUTER LAB", "DEPT": "LIBRARY", "MODEL": "EPSON 2255U"}, {"ROOM #": "GRNLY 203", "TYPE": "COMPUTER LAB", "DEPT": "LIBRARY", "MODEL": "SHARP 80\" (x2)"}, {"ROOM #": "GRNLY 206", "TYPE": "TRAINING ROOM", "DEPT": "CTLT", "MODEL": "SHARP 70\" (x4)"}, {"ROOM #": "GRNLY 220", "TYPE": "COMPUTER LAB", "DEPT": "DIST LEARNING", "MODEL": "SHARP 80\" (x2)"}, {"ROOM #": "GRNLY 301", "TYPE": "CLASSROOM", "DEPT": "TUTORING", "MODEL": "NEC E705"}, {"ROOM #": "GRNLY 308", "TYPE": "BREAKOUT ROOM", "DEPT": "TUTORING", "MODEL": "SAMSUNG BE65T-H"}, {"ROOM #": "GRNLY 309", "TYPE": "BREAKOUT ROOM", "DEPT": "TUTORING", "MODEL": "NEC E705"}, {"ROOM #": "GRNLY 310", "TYPE": "BREAKOUT ROOM", "DEPT": "TUTORING", "MODEL": "SAMSUNG BE65T-H"}, {"ROOM #": "GRNLY 317", "TYPE": "BREAKOUT ROOM", "DEPT": "WRITING CENTER", "MODEL": "NEC 65\""}, {"ROOM #": "GRNLY 320", "TYPE": "COMPUTER LAB", "DEPT": "WRITING CENTER", "MODEL": "NEC E805 (x2)"}, {"ROOM #": "HALE 120", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "EPSON 935W"}, {"ROOM #": "HALE 122", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "Epson ?"}, {"ROOM #": "HALE 123", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "MITSUBISHI SHORT THROW"}, {"ROOM #": "HALE 125", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "Epson ?"}, {"ROOM #": "HALE 126", "TYPE": "CONF ROOM", "DEPT": "BIO", "MODEL": "65\" LG Plasma (x2)"}, {"ROOM #": "HALE 138", "TYPE": "COMPUTER LAB", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HALE 139", "TYPE": "COMPUTER LAB", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HALE 141", "TYPE": "COMPUTER LAB", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HALE 142", "TYPE": "COMPUTER LAB", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HALE 210", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "Epson ?"}, {"ROOM #": "HALE 212", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "EPSON 1985WU"}, {"ROOM #": "HALE 213", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "MITSUBISHI SHORT THROW"}, {"ROOM #": "HALE 214", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "EPSON 535W"}, {"ROOM #": "HALE 216", "TYPE": "WET LAB", "DEPT": "BIO", "MODEL": "Epson ?"}, {"ROOM #": "HALE 222", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "HALE 224", "TYPE": "DRAFTING", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HALE 226", "TYPE": "DRAFTING", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HALE 227", "TYPE": "COMPUTER LAB", "DEPT": "VIS", "MODEL": "EPSON 1925W"}, {"ROOM #": "HALE 228", "TYPE": "PHOTO LAB", "DEPT": "VIS", "MODEL": "EPSON 96W"}, {"ROOM #": "HALE 231", "TYPE": "DRAFTING", "DEPT": "VIS", "MODEL": "EPSON 96W"}, {"ROOM #": "HALE 232", "TYPE": "DRAFTING", "DEPT": "VIS", "MODEL": "EPSON 96W"}, {"ROOM #": "HALE 234", "TYPE": "DRAFTING", "DEPT": "VIS", "MODEL": "EPSON L510U"}, {"ROOM #": "HORT PCR", "TYPE": "CONF ROOM", "DEPT": "PRESIDENT", "MODEL": "Panel ?"}, {"ROOM #": "LUPT 113", "TYPE": "DRAFTING", "DEPT": "ENGINEERING", "MODEL": "EPSON 2250U"}, {"ROOM #": "LUPT 115", "TYPE": "CLASSROOM", "DEPT": "ENGINEERING", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 119", "TYPE": "AUTOMOTIVE LAB", "DEPT": "AET", "MODEL": "?"}, {"ROOM #": "LUPT 121", "TYPE": "WIND POWER LAB", "DEPT": "ENGINEERING", "MODEL": "EPSON L510U"}, {"ROOM #": "LUPT 124A", "TYPE": "ENERGY LAB", "DEPT": "ENGINEERING", "MODEL": "EPSON L630U"}, {"ROOM #": "LUPT 124B", "TYPE": "ROBOTICS LAB", "DEPT": "ENGINEERING", "MODEL": "Panel ?"}, {"ROOM #": "LUPT 130A", "TYPE": "COMPUTER LAB", "DEPT": "MET", "MODEL": "Panel ?"}, {"ROOM #": "LUPT 130B", "TYPE": "COMPUTER LAB", "DEPT": "ARC", "MODEL": "Panel ?"}, {"ROOM #": "LUPT 131", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "LUPT 132", "TYPE": "CIVIL ENG LAB", "DEPT": "ENGINEERING", "MODEL": "EPSON L630U"}, {"ROOM #": "LUPT 137", "TYPE": "AUTOMOTIVE LAB", "DEPT": "AET", "MODEL": "?"}, {"ROOM #": "LUPT 156", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2250U"}, {"ROOM #": "LUPT 161", "TYPE": "COMPUTER LAB", "DEPT": "MET", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 165", "TYPE": "COMPUTER LAB", "DEPT": "AVA", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 190", "TYPE": "COMPUTER LAB", "DEPT": "MET", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 194", "TYPE": "COMPUTER LAB", "DEPT": "MET", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 233", "TYPE": "CLASSROOM", "DEPT": "?", "MODEL": "NEC C751Q"}, {"ROOM #": "LUPT 239", "TYPE": "CLASSROOM", "DEPT": "?", "MODEL": "NEC C751Q"}, {"ROOM #": "LUPT 242", "TYPE": "CLASSROOM", "DEPT": "?", "MODEL": "NEC C751Q"}, {"ROOM #": "LUPT 250", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 268", "TYPE": "DRAFTING", "DEPT": "CON", "MODEL": "EPSON 2255U"}, {"ROOM #": "LUPT 274", "TYPE": "DRAFTING", "DEPT": "CON", "MODEL": "EPSON 2250U"}, {"ROOM #": "LUPT 275", "TYPE": "DRAFTING", "DEPT": "ARC", "MODEL": "NEC C751Q"}, {"ROOM #": "LUPT T101", "TYPE": "CLASSROOM", "DEPT": "ENGINEERING", "MODEL": "EPSON 2255U"}, {"ROOM #": "NOLD 100", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L630U"}, {"ROOM #": "NOLD 101", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L630U"}, {"ROOM #": "NOLD 102", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L630U"}, {"ROOM #": "ROOS 156 (LT)", "TYPE": "THEATER", "DEPT": "ITSC", "MODEL": "EPSON 8300"}, {"ROOM #": "SINC 209", "TYPE": "COMPUTER LAB", "DEPT": "CRJ, GEO", "MODEL": "SHARP PN-E802"}, {"ROOM #": "SINC 211", "TYPE": "RESEARCH ROOM", "DEPT": "BUSINESS", "MODEL": "NEC C751Q"}, {"ROOM #": "SINC 213", "TYPE": "CLASSROOM", "DEPT": "CRJ", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 113", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L510U"}, {"ROOM #": "THOM 117", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 201", "TYPE": "COMPUTER LAB", "DEPT": "HORT", "MODEL": "EPSON L510U"}, {"ROOM #": "THOM 218", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 219", "TYPE": "DRAFTING", "DEPT": "HORT", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 220", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 221", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 222", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON 1985WU"}, {"ROOM #": "THOM 223", "TYPE": "DRAFTING", "DEPT": "HORT", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 019", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "NEC C861Q"}, {"ROOM #": "WHIT 024", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "NEC C861Q"}, {"ROOM #": "WHIT 026", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "NEC C861Q"}, {"ROOM #": "WHIT 108", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "EPSON 2255U"}, {"ROOM #": "WHIT 111", "TYPE": "CLASSROOM", "DEPT": "BUSINESS", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 123", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 124", "TYPE": "COMPUTER LAB", "DEPT": "BCS", "MODEL": "EPSON L510U/NEC E657Q"}, {"ROOM #": "WHIT 150", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L1300U"}, {"ROOM #": "WHIT 159", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L510U"}, {"ROOM #": "WHIT 161", "TYPE": "WET LAB", "DEPT": "ANT/SOC", "MODEL": "EPSON 2255U"}, {"ROOM #": "WHIT 166", "TYPE": "WET LAB", "DEPT": "CRJ", "MODEL": "?"}, {"ROOM #": "WHIT 168", "TYPE": "CLASSROOM", "DEPT": "RAM", "MODEL": "NEC E805"}, {"ROOM #": "WHIT 208", "TYPE": "COMPUTER LAB", "DEPT": "BCS", "MODEL": "EPSON 2255U"}, {"ROOM #": "WHIT 209", "TYPE": "COMPUTER LAB", "DEPT": "BCS", "MODEL": "EPSON 2255U"}, {"ROOM #": "WHIT 214", "TYPE": "COMPUTER LAB", "DEPT": "BCS", "MODEL": "EPSON 2255U"}, {"ROOM #": "WHIT 215", "TYPE": "COMPUTER LAB", "DEPT": "BCS", "MODEL": "EPSON L510U"}, {"ROOM #": "WHIT 216", "TYPE": "COMPUTER LAB", "DEPT": "BCS", "MODEL": "Epson ?"}, {"ROOM #": "WHIT 217", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 242", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 243", "TYPE": "COMPUTER LAB", "DEPT": "CISCO", "MODEL": "EPSON L510U"}, {"ROOM #": "WHIT 245", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 248", "TYPE": "COMPUTER LAB", "DEPT": "CRJ", "MODEL": "EPSON 1985WU"}, {"ROOM #": "WHIT 251", "TYPE": "CLASSROOM", "DEPT": "ITSC", "MODEL": "EPSON L510U"}, {"ROOM #": "WHIT 253", "TYPE": "COMPUTER LAB", "DEPT": "IT", "MODEL": "EPSON 1985WU"}];
+        
+        // PROCEDURES FROM Room Maintenance and Testing Procedure.docx
+        const tProc = ["Power On/Off test", "Volume control (all inputs)", "Mute button (all inputs)", "Input switching test", "Mouse/Keyboard check", "Internet access test", "Video/Audio test", "USB port check (PC & Podium)", "DVD/VCR media test", "Doc Camera (zoom/lights)", "Log Projector Lamp Hours"];
+        const cProc = ["Trash/desk cleanup", "Open rack/podium doors", "Vacuum desk, rack, side tray, projector, screen", "Clean screens (desktop/panel)", "Wipe down projector", "Vacuum projector filter", "Wipe keyboard/mouse", "Wipe doc camera", "Wipe rack/switcher", "Recoil cables", "Check local monitor inputs"];
+
+        let state = JSON.parse(localStorage.getItem('av_mt')) || {};
+
+        function save() { localStorage.setItem('av_mt', JSON.stringify(state)); updateStats(); }
+
+        function updateStats() {
+            const tot = rooms.length;
+            let done = 0, today = 0, week = 0;
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const startWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString().split('T')[0];
+
+            rooms.forEach(r => {
+                const s = state[r['ROOM #']];
+                if (s && s.d) {
+                    done++;
+                    if (s.d === todayStr) today++;
+                    if (s.d >= startWeek) week++;
+                }
+            });
+
+            document.getElementById('s-tot').innerText = tot;
+            document.getElementById('s-com').innerText = done;
+            document.getElementById('s-tod').innerText = today;
+            document.getElementById('s-wek').innerText = week;
+            document.getElementById('g-perc').innerText = Math.round(((tot-done)/tot)*100) + '%';
+        }
+
+        function toggle(room, type, idx) {
+            if(!state[room]) state[room] = {t:[], c:[], d:'', h:''};
+            state[room][type][idx] = !state[room][type][idx];
+            
+            const isDone = state[room].t.filter(Boolean).length === tProc.length && state[room].c.filter(Boolean).length === cProc.length;
+            if (isDone && !state[room].d) state[room].d = new Date().toISOString().split('T')[0];
+            save(); render();
+        }
+
+        function setDate(room, val) { if(!state[room]) state[room]={t:[],c:[],d:'',h:''}; state[room].d = val; save(); render(); }
+        function setLamp(room, val) { if(!state[room]) state[room]={t:[],c:[],d:'',h:''}; state[room].h = val; save(); }
+
+        function reset() { if(confirm('Clear all progress?')) { state = {}; save(); render(); } }
+
+        function render() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const filter = document.getElementById('f-status').value;
+            const container = document.getElementById('container');
+            container.innerHTML = '';
+
+            rooms.forEach(r => {
+                const name = r['ROOM #'];
+                const s = state[name] || {t:[], c:[], d:'', h:''};
+                const isDone = s.d !== '';
+                
+                if (query && !name.toLowerCase().includes(query)) return;
+                if (filter === 'c' && !isDone) return;
+                if (filter === 'p' && isDone) return;
+
+                const card = document.createElement('div');
+                card.className = 'room-card';
+                card.innerHTML = `
+                    <div class="room-h">
+                        <div><span class="room-n">${name}</span> <small>${r.TYPE} | ${r.DEPT}</small></div>
+                        <div style="display:flex; gap:10px; align-items:center">
+                            <input type="date" value="${s.d}" onchange="setDate('${name}', this.value)">
+                            <span class="pill ${isDone ? 'done' : ''}">${isDone ? 'Completed' : 'Pending'}</span>
+                        </div>
+                    </div>
+                    <div class="room-b">
+                        <div class="proc-s">
+                            <h4>Testing</h4>
+                            ${tProc.map((p, i) => `
+                                <label class="check-item">
+                                    <input type="checkbox" ${s.t[i] ? 'checked' : ''} onclick="toggle('${name}','t',${i})">
+                                    <span>${p}</span>
+                                </label>
+                                ${p.includes('Lamp') ? `<div class="lamp-in">Hours: <input type="text" style="width:60px" value="${s.h}" oninput="setLamp('${name}', this.value)"></div>` : ''}
+                            `).join('')}
+                        </div>
+                        <div class="proc-s">
+                            <h4>Cleaning</h4>
+                            ${cProc.map((p, i) => `
+                                <label class="check-item">
+                                    <input type="checkbox" ${s.c[i] ? 'checked' : ''} onclick="toggle('${name}','c',${i})">
+                                    <span>${p}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        render(); updateStats();
+    </script>
+</body>
+</html>
