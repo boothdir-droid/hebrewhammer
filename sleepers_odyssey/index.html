@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleeper's Odyssey - Home</title>
+    <style>
+        body {
+            background-color: #111;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        
+        h1 {
+            color: #f1c40f;
+            text-shadow: 2px 2px #000;
+            margin-bottom: 40px;
+        }
+
+        .links-container {
+            display: flex;
+            gap: 50px; /* Space between the two image links */
+        }
+
+        .link-item {
+            text-align: center;
+            transition: transform 0.2s; /* Smooth zoom effect on hover */
+        }
+
+        .link-item:hover {
+            transform: scale(1.05);
+        }
+
+        img {
+            width: 300px; /* Adjust this value to change image size */
+            height: auto;
+            border: 4px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+        }
+
+        a {
+            color: #3498db;
+            text-decoration: none;
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: block;
+            margin-top: 15px;
+        }
+
+        a:hover {
+            color: #2ecc71;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>SLEEPER'S ODYSSEY</h1>
+
+    <div class="links-container">
+        <div class="link-item">
+            <a href="https://hebrewhammer.live/sleepers_odyssey/sleepers_odyssey.html">
+                <img src="game.png" alt="Play Sleeper's Odyssey Game">
+                <br>Play Game
+            </a>
+        </div>
+
+        <div class="link-item">
+            <a href="https://hebrewhammer.live/sleepers_odyssey/sleepers_odyssey.mp4">
+                <img src="movie.png" alt="Watch Sleeper's Odyssey Video">
+                <br>Watch Video
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
