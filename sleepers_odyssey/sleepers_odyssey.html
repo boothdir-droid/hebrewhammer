@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleeper's Odyssey</title>
+    <style>
+        body { 
+            margin: 0; 
+            background-color: #111; 
+            display: flex; 
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            color: white; 
+            font-family: 'Courier New', Courier, monospace; 
+        }
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 450px;
+        }
+        canvas { 
+            border: 4px solid #333; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.8); 
+            display: block;
+        }
+        #uiLayer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .char-btn {
+            background-color: #3498db;
+            color: white;
+            border: 2px solid #fff;
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 18px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .char-btn:hover { background-color: #2980b9; transform: scale(1.05); }
+        #instructions { text-align: center; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div id="instructions">
+        <h2>SLEEPER'S ODYSSEY</h2>
+        <p><strong>Left/Right Arrows:</strong> Move | <strong>Up Arrow:</strong> Jump | <strong>Space:</strong> Shoot</p>
+    </div>
+    
+    <div id="gameContainer">
+        <div id="uiLayer">
+            <h1 style="color: #f1c40f; text-shadow: 2px 2px #000;">SELECT YOUR HERO</h1>
+            <div>
+                <button class="char-btn" onclick="startGame('char1.png')">Green Shirt</button>
+                <button class="char-btn" onclick="startGame('char2.png')">Mustache</button>
+                <button class="char-btn" onclick="startGame('char3.png')">Beard & Glasses</button>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="450"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const uiLayer = document.getElementById('uiLayer');
+
+        let gameState = 'MENU'; // MENU, PLAYING, WON
+
+        // --- IMAGES ---
+        const imgs = {
+            bg: new Image(),
+            sleeper: new Image(),
+            boss: new Image(),
+            player: new Image()
+        };
+        imgs.bg.src = 'bg.png';
+        imgs.sleeper.src = 'sleeper.png';
+        imgs.boss.src = 'boss.png';
+
+        // --- GAME ENTITIES (SCALED UP) ---
+        const groundY = 380; 
+        const player = { x: 100, y: 230, width: 120, height: 150, dx: 0, dy: 0, speed: 6, jumpPower: -14, grounded: false };
+        const sleeper = { x: 300, y: 270, width: 225, height: 110 };
+        const boss = { x: 550, y: 50, width: 200, height: 200, hp: 200, maxHp: 200, floatOffset: 0 };
+        
+        let projectiles = [];
+        let keys = {};
+
+        // --- INPUT (WITH SCROLL FIX) ---
+        window.addEventListener('keydown', (e) => {
+            if(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+                e.preventDefault();
+            }
+            keys[e.code] = true;
+            if (e.code === 'Space' && gameState === 'PLAYING') shoot();
+        }, { passive: false });
+        
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        function shoot() {
+            // Adjusted projectile start position for the taller character
+            projectiles.push({ x: player.x + player.width - 20, y: player.y + 60, speed: 12 });
+        }
+
+        // --- START GAME ---
+        window.startGame = function(charImageSrc) {
+            imgs.player.src = charImageSrc;
+            uiLayer.style.display = 'none';
+            gameState = 'PLAYING';
+            // Reset state
+            boss.hp = boss.maxHp;
+            projectiles = [];
+            player.x = 100;
+        }
+
+        // --- GAME LOGIC (WITH JUMP FIX) ---
+        function update() {
+            if (gameState !== 'PLAYING') return;
+
+            // 1. Player Movement (Left/Right)
+            if (keys['ArrowLeft']) player.dx = -player.speed;
+            else if (keys['ArrowRight']) player.dx = player.speed;
+            else player.dx = 0;
+
+            // 2. Jumping (Must happen before gravity pulls down)
+            if (keys['ArrowUp'] && player.grounded) {
+                player.dy = player.jumpPower;
+                player.grounded = false;
+            }
+
+            // 3. Player Physics (Apply gravity and update position)
+            player.dy += 0.7; // Gravity
+            player.y += player.dy;
+            player.x += player.dx;
+
+            // 4. Screen boundaries (Don't walk off the sides)
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+
+            // 5. Floor Collision
+            if (player.y + player.height >= groundY) {
+                player.y = groundY - player.height;
+                player.dy = 0;
+                player.grounded = true;
+            }
+
+            // 6. Boss floating animation
+            boss.floatOffset += 0.05;
+            boss.y = 50 + Math.sin(boss.floatOffset) * 20; // Adjusted for scaled boss
+
+            // 7. Projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+                p.x += p.speed;
+                
+                // Collision with Boss
+                if (p.x > boss.x && p.x < boss.x + boss.width &&
+                    p.y > boss.y && p.y < boss.y + boss.height) {
+                    projectiles.splice(i, 1);
+                    boss.hp -= 10;
+                    if (boss.hp <= 0) gameState = 'WON';
+                }
+                
+                // Remove if off screen
+                if (p.x > canvas.width) projectiles.splice(i, 1);
+            }
+        }
+
+        // --- RENDERING ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw Background
+            if (imgs.bg.complete && imgs.bg.naturalWidth > 0) {
+                ctx.drawImage(imgs.bg, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.fillStyle = '#1e272e'; 
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            if (gameState === 'MENU') return;
+
+            // 2. Draw Sleeper
+            if (imgs.sleeper.complete && imgs.sleeper.naturalWidth > 0) {
+                ctx.drawImage(imgs.sleeper, sleeper.x, sleeper.y, sleeper.width, sleeper.height);
+            }
+
+            // 3. Draw Player
+            if (imgs.player.complete && imgs.player.naturalWidth > 0) {
+                ctx.drawImage(imgs.player, player.x, player.y, player.width, player.height);
+            } else {
+                ctx.fillStyle = 'green'; 
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+            }
+
+            // 4. Draw Boss & Health Bar
+            if (gameState === 'PLAYING') {
+                if (imgs.boss.complete && imgs.boss.naturalWidth > 0) {
+                    ctx.drawImage(imgs.boss, boss.x, boss.y, boss.width, boss.height);
+                } else {
+                    ctx.fillStyle = 'red'; 
+                    ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+                }
+                
+                // Boss HP Bar
+                ctx.fillStyle = 'black';
+                ctx.fillRect(boss.x, boss.y - 20, boss.width, 10);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(boss.x, boss.y - 20, boss.width * (boss.hp / boss.maxHp), 10);
+            } else if (gameState === 'WON') {
+                // Victory Text
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f1c40f';
+                ctx.font = 'bold 60px Courier New';
+                ctx.textAlign = 'center';
+                ctx.shadowColor = 'black';
+                ctx.shadowBlur = 10;
+                ctx.fillText('VICTORY!', canvas.width/2, canvas.height/2);
+                ctx.font = '20px Courier New';
+                ctx.fillText('The sleeper is safe.', canvas.width/2, canvas.height/2 + 40);
+                ctx.shadowBlur = 0; // reset
+            }
+
+            // 5. Draw Projectiles
+            ctx.fillStyle = '#f1c40f';
+            projectiles.forEach(p => {
+                ctx.beginPath(); 
+                ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); 
+                ctx.fill();
+                ctx.stroke();
+            });
+        }
+
+        // --- MAIN LOOP ---
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        // Start Loop
+        imgs.bg.onload = loop; 
+        if(imgs.bg.complete) loop();
+    </script>
+</body>
+</html>
